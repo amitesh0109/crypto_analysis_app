@@ -26,3 +26,6 @@ Summary statistics
 
 Correlation matrix of key metrics
 
+<img width="1438" alt="Screenshot 2024-09-08 at 9 59 30 PM" src="https://github.com/user-attachments/assets/dbc09480-7c7a-4c1a-bce0-bd0c75714c77">
+
+
