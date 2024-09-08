@@ -18,3 +18,11 @@ Daily returns distribution
 
 Historical volatility chart
 
+<img width="1436" alt="Screenshot 2024-09-08 at 9 57 16 PM" src="https://github.com/user-attachments/assets/55c11eac-5b14-4235-8907-a309b77cca5f">
+
+Summary statistics
+
+
+
+Correlation matrix of key metrics
+
