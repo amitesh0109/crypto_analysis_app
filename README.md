@@ -1,4 +1,4 @@
-# crypto_analysis_app
+# Crypto Analysis App 
 This is a python project that analyzes cryptocurrency data and displays the analysis on a Streamlit web app. 
 
 <img width="1437" alt="Screenshot 2024-09-08 at 9 48 09 PM" src="https://github.com/user-attachments/assets/3f15f021-752b-41ae-ae3a-a4f67acb58ed">
