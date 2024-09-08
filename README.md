@@ -9,3 +9,8 @@ Data retrieval: Using the yfinance library to fetch real-time cryptocurrency dat
 Data analysis: Calculating moving averages, daily returns, and volatility.
 Data visualization: Creating interactive charts using Plotly Express.
 Web app development: Building an interactive dashboard with Streamlit.
+
+#Daily returns distribution
+
+<img width="1440" alt="Screenshot 2024-09-08 at 9 52 17 PM" src="https://github.com/user-attachments/assets/d171b22d-8873-47d6-935a-721b53e5119e">
+
