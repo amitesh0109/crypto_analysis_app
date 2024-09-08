@@ -22,7 +22,7 @@ Historical volatility chart
 
 Summary statistics
 
-
+<img width="1427" alt="Screenshot 2024-09-08 at 9 58 38 PM" src="https://github.com/user-attachments/assets/bc1bab62-6942-487c-bc97-0360c8b87178">
 
 Correlation matrix of key metrics
 
