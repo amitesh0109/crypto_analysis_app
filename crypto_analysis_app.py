@@ -3,32 +3,42 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 import plotly.express as px
+import plotly.graph_objects as go
 from datetime import datetime, timedelta
+from typing import Tuple
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.ensemble import IsolationForest
+from sklearn.impute import SimpleImputer
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
+from textblob import TextBlob
+import tweepy
 
-# Function to fetch cryptocurrency data
-def fetch_crypto_data(symbol, start_date, end_date):
-    data = yf.download(f"{symbol}-USD", start=start_date, end=end_date)
+# ... (keep the previous imports and functions) ...
+
+def handle_nan_values(data: pd.DataFrame) -> pd.DataFrame:
+    # Fill NaN values in 'Daily_Return' and 'Volatility' columns with 0
+    data['Daily_Return'] = data['Daily_Return'].fillna(0)
+    data['Volatility'] = data['Volatility'].fillna(0)
+    
+    # For 'Close' and 'Volume', use forward fill method
+    data['Close'] = data['Close'].fillna(method='ffill')
+    data['Volume'] = data['Volume'].fillna(method='ffill')
+    
     return data
 
-# Function to calculate moving averages
-def calculate_moving_averages(data, short_window, long_window):
-    data['SMA_short'] = data['Close'].rolling(window=short_window).mean()
-    data['SMA_long'] = data['Close'].rolling(window=long_window).mean()
-    return data
+def detect_anomalies(data: pd.DataFrame) -> pd.Series:
+    # Handle NaN values before anomaly detection
+    data_cleaned = handle_nan_values(data)
+    
+    clf = IsolationForest(contamination=0.01, random_state=42)
+    anomalies = clf.fit_predict(data_cleaned[['Close', 'Volume', 'Daily_Return', 'Volatility']])
+    return pd.Series(anomalies, index=data.index)
 
-# Function to calculate daily returns
-def calculate_daily_returns(data):
-    data['Daily_Return'] = data['Close'].pct_change()
-    return data
-
-# Function to calculate volatility
-def calculate_volatility(data, window):
-    data['Volatility'] = data['Daily_Return'].rolling(window=window).std() * np.sqrt(window)
-    return data
-
-# Streamlit app
 def main():
-    st.title("Cryptocurrency Analysis Dashboard")
+    st.set_page_config(page_title="AI-Enhanced Crypto Analysis Dashboard", layout="wide")
+    st.title("AI-Enhanced Cryptocurrency Analysis Dashboard")
 
     # Sidebar for user input
     st.sidebar.header("User Input")
@@ -38,38 +48,49 @@ def main():
     long_ma = st.sidebar.slider("Long-term MA window", 20, 200, 50)
     volatility_window = st.sidebar.slider("Volatility window", 5, 30, 14)
 
-    # Fetch data
+    # Fetch and process data
     end_date = datetime.now()
     start_date = end_date - timedelta(days=days)
     data = fetch_crypto_data(crypto_symbol, start_date, end_date)
+    data = calculate_indicators(data, short_ma, long_ma, volatility_window)
 
-    # Perform analysis
-    data = calculate_moving_averages(data, short_ma, long_ma)
-    data = calculate_daily_returns(data)
-    data = calculate_volatility(data, volatility_window)
+    # Handle NaN values
+    data = handle_nan_values(data)
 
-    # Display raw data
-    st.subheader("Raw Data")
-    st.dataframe(data.tail())
+    # AI-powered price prediction
+    X, y, scaler = prepare_data_for_lstm(data)
+    model = train_lstm_model(X, y)
+    future_predictions = predict_future_prices(model, X[-1], scaler)
 
-    # Price chart with moving averages
-    st.subheader("Price Chart with Moving Averages")
-    fig_price = px.line(data, x=data.index, y=['Close', 'SMA_short', 'SMA_long'],
-                        labels={'value': 'Price', 'variable': 'Metric'},
-                        title=f"{crypto_symbol} Price and Moving Averages")
-    st.plotly_chart(fig_price)
+    # Anomaly detection
+    anomalies = detect_anomalies(data)
+    data['Anomaly'] = anomalies
 
-    # Daily returns histogram
-    st.subheader("Daily Returns Distribution")
-    fig_returns = px.histogram(data, x='Daily_Return', nbins=50,
-                               title=f"{crypto_symbol} Daily Returns Distribution")
-    st.plotly_chart(fig_returns)
+    # Sentiment analysis
+    try:
+        sentiment = get_twitter_sentiment(crypto_symbol)
+        st.sidebar.metric("Twitter Sentiment", f"{sentiment:.2f}", "-1 (Negative) to 1 (Positive)")
+    except Exception as e:
+        st.sidebar.warning(f"Unable to fetch Twitter sentiment: {str(e)}")
 
-    # Volatility chart
-    st.subheader("Historical Volatility")
-    fig_volatility = px.line(data, x=data.index, y='Volatility',
-                             title=f"{crypto_symbol} {volatility_window}-Day Historical Volatility")
-    st.plotly_chart(fig_volatility)
+    # Display charts
+    col1, col2 = st.columns(2)
+    with col1:
+        st.plotly_chart(plot_price_chart(data, crypto_symbol, future_predictions), use_container_width=True)
+    with col2:
+        st.plotly_chart(plot_returns_distribution(data, crypto_symbol), use_container_width=True)
+
+    col3, col4 = st.columns(2)
+    with col3:
+        st.plotly_chart(plot_volatility(data, crypto_symbol, volatility_window), use_container_width=True)
+    with col4:
+        st.plotly_chart(plot_rsi(data, crypto_symbol), use_container_width=True)
+
+    # Anomaly detection plot
+    st.subheader("Anomaly Detection")
+    fig_anomaly = px.scatter(data, x=data.index, y='Close', color='Anomaly',
+                             title=f"{crypto_symbol} Price with Anomalies Highlighted")
+    st.plotly_chart(fig_anomaly, use_container_width=True)
 
     # Summary statistics
     st.subheader("Summary Statistics")
@@ -78,10 +99,14 @@ def main():
 
     # Correlation matrix
     st.subheader("Correlation Matrix")
-    correlation_matrix = data[['Close', 'Volume', 'Daily_Return', 'Volatility']].corr()
+    correlation_matrix = data[['Close', 'Volume', 'Daily_Return', 'Volatility', 'RSI']].corr()
     fig_corr = px.imshow(correlation_matrix, text_auto=True, aspect="auto",
                          title="Correlation Matrix of Key Metrics")
-    st.plotly_chart(fig_corr)
+    st.plotly_chart(fig_corr, use_container_width=True)
+
+    # Display raw data
+    st.subheader("Raw Data")
+    st.dataframe(data.tail())
 
 if __name__ == "__main__":
     main()
